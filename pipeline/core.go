@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
+	"time"
 )
 
 // The Factory interface represents an object that can create its Policy object. Each HTTP request sent
@@ -28,7 +30,7 @@ type Policy interface {
 
 // Options configures a Pipeline's behavior.
 type Options struct {
-	HTTPSender Factory // If sender is nil, then http.DefaultClient is used to send the HTTP requests.
+	HTTPSender Factory // If sender is nil, then the pipeline's default client is used to send the HTTP requests.
 	Log        LogOptions
 }
 
@@ -186,6 +188,32 @@ func (n *Node) Logf(severity LogSeverity, format string, v ...interface{}) {
 	n.Log(severity, b.String())
 }
 
+var pipelineHTTPClient = newDefaultHTTPClient()
+
+func newDefaultHTTPClient() *http.Client {
+	// We want the Transport to have a large connection pool
+	return &http.Client{
+		Transport: &http.Transport{
+			Proxy: http.ProxyFromEnvironment,
+			DialContext: (&net.Dialer{
+				Timeout:   30 * time.Second,
+				KeepAlive: 30 * time.Second,
+				DualStack: true,
+			}).DialContext,
+			MaxIdleConns:           0, // No limit
+			MaxIdleConnsPerHost:    100,
+			IdleConnTimeout:        90 * time.Second,
+			TLSHandshakeTimeout:    10 * time.Second,
+			ExpectContinueTimeout:  1 * time.Second,
+			DisableKeepAlives:      false,
+			DisableCompression:     false,
+			MaxResponseHeaderBytes: 0,
+			//ResponseHeaderTimeout:  time.Duration{},
+			//ExpectContinueTimeout:  time.Duration{},
+		},
+	}
+}
+
 // newDefaultHTTPClientFactory creates a DefaultHTTPClientPolicyFactory object that sends HTTP requests to a Go's default http.Client.
 func newDefaultHTTPClientFactory() Factory {
 	return &defaultHTTPClientPolicyFactory{}
@@ -204,7 +232,7 @@ type defaultHTTPClientPolicy struct {
 }
 
 func (p *defaultHTTPClientPolicy) Do(ctx context.Context, request Request) (Response, error) {
-	r, err := http.DefaultClient.Do(request.WithContext(ctx))
+	r, err := pipelineHTTPClient.Do(request.WithContext(ctx))
 	if err != nil {
 		err = NewError(err, "HTTP request failed")
 	}

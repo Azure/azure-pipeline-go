@@ -35,14 +35,15 @@ func (r httpResponse) Response() *http.Response {
 
 // WriteRequest appends a formatted HTTP request into a Buffer.
 func WriteRequest(b *bytes.Buffer, request *http.Request) {
-	fmt.Fprint(b, "=====> REQUEST: "+request.Method+" "+request.URL.String()+"\n")
+	fmt.Fprint(b, "   "+request.Method+" "+request.URL.String()+"\n")
 	writeHeader(b, request.Header)
 }
 
 // WriteResponseWithRequest appends a formatted HTTP response with its initiating request into a Buffer.
 func WriteResponseWithRequest(b *bytes.Buffer, response *http.Response) {
 	WriteRequest(b, response.Request) // Write the request first followed by the response.
-	fmt.Fprintf(b, "=====> RESPONSE: Status=%s\n", response.Status)
+	fmt.Fprintln(b, "   --------------------------------------------------------------------------------")
+	fmt.Fprintf(b, "   RESPONSE Status: %s\n", response.Status)
 	writeHeader(b, response.Header)
 }
 
