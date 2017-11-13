@@ -63,8 +63,13 @@ const (
 
 // LogOptions configures the pipeline's logging mechanism & severity filtering.
 type LogOptions struct {
-	Log            func(level LogSeverity, message string)
-	LogMaxSeverity LogSeverity // Defaults to LogNone
+	Log func(level LogSeverity, message string)
+
+	// MinimumSeverityToLog is called periodically allowing you to return the minimum severity level to log.
+	// An application can return different values over the its lifetime; this allows the application to dynamically
+	// alter what is logged. NOTE: This method can be called by multiple goroutines simultaneously so make sure
+	// you implement it in a goroutine-safe way. If nil, nothing is logged (the equivalent of returning LogNone).
+	MinimumSeverityToLog func() LogSeverity
 }
 
 type pipeline struct {
@@ -154,7 +159,11 @@ func (n *Node) Do(ctx context.Context, request Request) (Response, error) {
 
 // WouldLog returns true if the specified severity level would be logged.
 func (n *Node) WouldLog(severity LogSeverity) bool {
-	return severity <= n.pipeline.options.Log.LogMaxSeverity
+	minimum := LogNone
+	if n.pipeline.options.Log.MinimumSeverityToLog != nil {
+		minimum = n.pipeline.options.Log.MinimumSeverityToLog()
+	}
+	return severity <= minimum
 }
 
 // Log logs a string to the Pipeline's Logger.
