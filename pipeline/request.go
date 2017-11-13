@@ -64,9 +64,10 @@ func (r Request) Copy() Request {
 		panic("Can't make a deep copy of the http.Request because at least one of the following is not nil:" +
 			"TransferEncoding, Form, PostForm, MultipartForm, or Trailer.")
 	}
-	copy := *r.Request           // Copy the request
-	copy.URL = &(*r.Request.URL) // Copy the URL
-	copy.Header = http.Header{}  // Copy the header
+	copy := *r.Request          // Copy the request
+	urlCopy := *(r.Request.URL) // Copy the URL
+	copy.URL = &urlCopy
+	copy.Header = http.Header{} // Copy the header
 	for k, vs := range r.Header {
 		for _, value := range vs {
 			copy.Header.Add(k, value)

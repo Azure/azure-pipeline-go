@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
+	"strings"
 )
 
 // The Response interface exposes an http.Response object as it returns through the pipeline of Policy objects.
@@ -60,6 +61,10 @@ func writeHeader(b *bytes.Buffer, header map[string][]string) {
 	}
 	sort.Strings(keys)
 	for _, k := range keys {
-		fmt.Fprintf(b, "   %s: %+v\n", k, header[k])
+		value := interface{}("(redacted)")
+		if !strings.EqualFold(k, "Authorization") {
+			value = header[k]
+		}
+		fmt.Fprintf(b, "   %s: %+v\n", k, value)
 	}
 }

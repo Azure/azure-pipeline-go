@@ -44,8 +44,8 @@ func (e ErrorNode) Temporary() bool {
 	}
 
 	for err := e.cause; err != nil; {
-		if temporary, ok := err.(temporary); ok {
-			return temporary.Temporary()
+		if t, ok := err.(temporary); ok {
+			return t.Temporary()
 		}
 
 		if cause, ok := err.(causer); ok {
@@ -64,8 +64,8 @@ func (e ErrorNode) Timeout() bool {
 	}
 
 	for err := e.cause; err != nil; {
-		if timeout, ok := err.(timeout); ok {
-			return timeout.Timeout()
+		if t, ok := err.(timeout); ok {
+			return t.Timeout()
 		}
 
 		if cause, ok := err.(causer); ok {
@@ -83,7 +83,7 @@ func (e ErrorNode) Timeout() bool {
 // value of 3 is very common; but, depending on your code nesting, you may need
 // a different value.
 func (ErrorNode) Initialize(cause error, callersToSkip int) ErrorNode {
-	// Get the PC of Initialize's caller.
+	// Get the PC of Initialize method's caller.
 	pc := [1]uintptr{}
 	_ = runtime.Callers(callersToSkip, pc[:])
 	return ErrorNode{pc: pc[0], cause: cause}
