@@ -40,9 +40,9 @@ func WriteRequest(b *bytes.Buffer, request *http.Request) {
 	writeHeader(b, request.Header)
 }
 
-// WriteResponseWithRequest appends a formatted HTTP response with its initiating request into a Buffer.
-func WriteResponseWithRequest(b *bytes.Buffer, response *http.Response) {
-	WriteRequest(b, response.Request) // Write the request first followed by the response.
+// WriteRequestWithResponse appends a formatted HTTP response with its initiating request into a Buffer.
+func WriteRequestWithResponse(b *bytes.Buffer, request *http.Request, response *http.Response) {
+	WriteRequest(b, request) // Write the request first followed by the response.
 	fmt.Fprintln(b, "   --------------------------------------------------------------------------------")
 	fmt.Fprintf(b, "   RESPONSE Status: %s\n", response.Status)
 	writeHeader(b, response.Header)
@@ -61,7 +61,8 @@ func writeHeader(b *bytes.Buffer, header map[string][]string) {
 	}
 	sort.Strings(keys)
 	for _, k := range keys {
-		value := interface{}("(redacted)")
+		// Redact the value of any Authorization header to prevent security information from persisting in logs
+		value := interface{}("REDACTED")
 		if !strings.EqualFold(k, "Authorization") {
 			value = header[k]
 		}

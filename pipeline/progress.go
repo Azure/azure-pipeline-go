@@ -2,7 +2,7 @@ package pipeline
 
 import "io"
 
-// ********** The following types are common between the request body AND the response body.
+// ********** The following is common between the request body AND the response body.
 
 // ProgressReceiver defines the signature of a callback function invoked as progress is reported.
 type ProgressReceiver func(bytesTransferred int64)
