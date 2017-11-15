@@ -1,31 +1,28 @@
 package pipeline
 
 import (
-	"fmt"
 	"os"
 	"syscall"
 	"unsafe"
 )
 
-func defaultLog(level LogSeverity, format string, a ...interface{}) {
+// ForceLog should rarely be used. It forceable logs an entry to the
+// Windows Event Log (on Windows) or to the SysLog (on Linux)
+func ForceLog(level LogSeverity, msg string) {
+	var el eventType
 	switch level {
 	case LogError, LogFatal, LogPanic:
-		s := ""
-		if format == "" {
-			s = fmt.Sprint(a...)
-		} else {
-			s = fmt.Sprintf(format, a...)
-		}
-		reportEvent(elError, 0, s)
+		el = elError
 	case LogWarning:
-		s := ""
-		if format == "" {
-			s = fmt.Sprint(a...)
-		} else {
-			s = fmt.Sprintf(format, a...)
-		}
-		reportEvent(elWarning, 0, s)
+		el = elWarning
+	case LogInfo:
+		el = elInfo
 	}
+	// We are logging it, ensure trailing newline
+	if len(msg) == 0 || msg[len(msg)-1] != '\n' {
+		msg += "\n" // Ensure trailing newline
+	}
+	reportEvent(el, 0, msg)
 }
 
 type eventType int16

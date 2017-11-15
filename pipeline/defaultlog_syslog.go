@@ -7,30 +7,23 @@ import (
 	"log/syslog"
 )
 
-func defaultLog(severity LogSeverity, format string, a ...interface{}) {
+// ForceLog should rarely be used. It forceable logs an entry to the
+// Windows Event Log (on Windows) or to the SysLog (on Linux)
+func ForceLog(severity LogSeverity, msg string) {
 	if defaultLogger == nil {
 		return // Return fast if we failed to create the logger.
 	}
+	// We are logging it, ensure trailing newline
+	if len(msg) == 0 || msg[len(msg)-1] != '\n' {
+		msg += "\n" // Ensure trailing newline
+	}
 	switch severity {
 	case LogFatal:
-		if format == "" {
-			defaultLogger.Fatal(a...)
-		} else {
-			defaultLogger.Fatalf(format, a...)
-		}
+		defaultLogger.Fatal(msg)
 	case LogPanic:
-		if format == "" {
-			defaultLogger.Panic(a...)
-		} else {
-			defaultLogger.Panicf(format, a...)
-		}
-	case LogError, LogWarning:
-		if format == "" {
-			defaultLogger.Print(a...)
-		} else {
-			defaultLogger.Printf(format, a...)
-		}
-	default: // Do not log less severe entries
+		defaultLogger.Panic(msg)
+	case LogError, LogWarning, LogInfo:
+		defaultLogger.Print(msg)
 	}
 }
 

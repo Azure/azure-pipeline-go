@@ -1,9 +1,7 @@
 package pipeline
 
 import (
-	"bytes"
 	"context"
-	"fmt"
 	"net"
 	"net/http"
 	"os"
@@ -39,7 +37,7 @@ type Options struct {
 // whose severity is at as as severe as what it was told to log. See the Log* constants.
 // For example, if a logger is configured with LogError severity, then LogError, LogPanic,
 // and LogFatal entries will be logged; less severe entries will be ignored.
-type LogSeverity int
+type LogSeverity uint32
 
 const (
 	// LogNone tells a logger not to log any entries passed to it.
@@ -157,8 +155,8 @@ func (n *Node) Do(ctx context.Context, request Request) (Response, error) {
 	return n.next.Do(ctx, request)
 }
 
-// WouldLog returns true if the specified severity level would be logged.
-func (n *Node) WouldLog(severity LogSeverity) bool {
+// ShouldLog returns true if the specified severity level should be logged.
+func (n *Node) ShouldLog(severity LogSeverity) bool {
 	minimum := LogNone
 	if n.pipeline.options.Log.MinimumSeverityToLog != nil {
 		minimum = n.pipeline.options.Log.MinimumSeverityToLog()
@@ -168,33 +166,22 @@ func (n *Node) WouldLog(severity LogSeverity) bool {
 
 // Log logs a string to the Pipeline's Logger.
 func (n *Node) Log(severity LogSeverity, msg string) {
-	if !n.WouldLog(severity) {
+	if !n.ShouldLog(severity) {
 		return // Short circuit message formatting if we're not logging it
 	}
+
+	// We are logging it, ensure trailing newline
 	if len(msg) == 0 || msg[len(msg)-1] != '\n' {
 		msg += "\n" // Ensure trailing newline
 	}
-	defaultLog(severity, msg)
 	n.pipeline.options.Log.Log(severity, msg)
+
 	// If logger doesn't handle fatal/panic, we'll do it here.
 	if severity == LogFatal {
 		os.Exit(1)
 	} else if severity == LogPanic {
 		panic(msg)
 	}
-}
-
-// Logf logs a string to the Pipeline's Logger.
-func (n *Node) Logf(severity LogSeverity, format string, v ...interface{}) {
-	if !n.WouldLog(severity) {
-		return // Short circuit message formatting if we're not logging it
-	}
-	b := &bytes.Buffer{}
-	fmt.Fprintf(b, format, v...)
-	if b.Len() == 0 || b.Bytes()[b.Len()-1] != '\n' {
-		b.WriteRune('\n') // Ensure trailing newline
-	}
-	n.Log(severity, b.String())
 }
 
 var pipelineHTTPClient = newDefaultHTTPClient()
