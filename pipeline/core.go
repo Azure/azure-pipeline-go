@@ -32,16 +32,16 @@ type Options struct {
 	Log        LogOptions
 }
 
-// LogSeverity tells a logger the minimum severity to log. When code reports a log entry,
-// the LogSeverity indicates the severity of the log entry. The logger only records entries
-// whose severity is at as as severe as what it was told to log. See the Log* constants.
-// For example, if a logger is configured with LogError severity, then LogError, LogPanic,
-// and LogFatal entries will be logged; less severe entries will be ignored.
-type LogSeverity uint32
+// LogLevel tells a logger the minimum level to log. When code reports a log entry,
+// the LogLevel indicates the level of the log entry. The logger only records entries
+// whose level is at least the level it was told to log. See the Log* constants.
+// For example, if a logger is configured with LogError, then LogError, LogPanic,
+// and LogFatal entries will be logged; lower level entries are ignored.
+type LogLevel uint32
 
 const (
 	// LogNone tells a logger not to log any entries passed to it.
-	LogNone LogSeverity = iota
+	LogNone LogLevel = iota
 
 	// LogFatal tells a logger to log all LogFatal entries passed to it.
 	LogFatal
@@ -59,15 +59,15 @@ const (
 	LogInfo
 )
 
-// LogOptions configures the pipeline's logging mechanism & severity filtering.
+// LogOptions configures the pipeline's logging mechanism & level filtering.
 type LogOptions struct {
-	Log func(level LogSeverity, message string)
+	Log func(level LogLevel, message string)
 
-	// MinimumSeverityToLog is called periodically allowing you to return the minimum severity level to log.
+	// MinimumLevelToLog is called periodically allowing you to return the minimum level to log.
 	// An application can return different values over the its lifetime; this allows the application to dynamically
 	// alter what is logged. NOTE: This method can be called by multiple goroutines simultaneously so make sure
 	// you implement it in a goroutine-safe way. If nil, nothing is logged (the equivalent of returning LogNone).
-	MinimumSeverityToLog func() LogSeverity
+	MinimumLevelToLog func() LogLevel
 }
 
 type pipeline struct {
@@ -95,7 +95,7 @@ func NewPipeline(factories []Factory, o Options) Pipeline {
 		o.HTTPSender = newDefaultHTTPClientFactory()
 	}
 	if o.Log.Log == nil {
-		o.Log.Log = func(LogSeverity, string) {} // No-op logger
+		o.Log.Log = func(LogLevel, string) {} // No-op logger
 	}
 	return &pipeline{factories: factories, options: o}
 }
@@ -116,9 +116,10 @@ func (p *pipeline) newPolicies(methodFactory Factory) Policy {
 	node := Node{pipeline: p, next: nil}
 	node.next = p.options.HTTPSender.New(node)
 
-	// Walk over the slice of Factory objects
+	// Walk over the slice of Factory objects in reverse (from wire to API)
 	markers := 0
-	for _, factory := range p.factories {
+	for i := len(p.factories) - 1; i >= 0; i-- {
+		factory := p.factories[i]
 		if _, ok := factory.(methodFactoryMarker); ok {
 			markers++
 			if markers > 1 {
@@ -133,6 +134,7 @@ func (p *pipeline) newPolicies(methodFactory Factory) Policy {
 			node.next = factory.New(node)
 		}
 	}
+
 	// Each Factory has created its Policy
 	if markers == 0 && methodFactory != nil {
 		panic("Non-nil methodFactory requires MethodFactoryMarker in the pipeline")
@@ -155,18 +157,21 @@ func (n *Node) Do(ctx context.Context, request Request) (Response, error) {
 	return n.next.Do(ctx, request)
 }
 
-// ShouldLog returns true if the specified severity level should be logged.
-func (n *Node) ShouldLog(severity LogSeverity) bool {
-	minimum := LogNone
-	if n.pipeline.options.Log.MinimumSeverityToLog != nil {
-		minimum = n.pipeline.options.Log.MinimumSeverityToLog()
+// ShouldLog returns true if the specified log level should be logged.
+func (n *Node) ShouldLog(level LogLevel) bool {
+	if level == LogNone {
+		return false
 	}
-	return severity <= minimum
+	minimumLevel := LogNone
+	if n.pipeline.options.Log.MinimumLevelToLog != nil {
+		minimumLevel = n.pipeline.options.Log.MinimumLevelToLog()
+	}
+	return level <= minimumLevel
 }
 
 // Log logs a string to the Pipeline's Logger.
-func (n *Node) Log(severity LogSeverity, msg string) {
-	if !n.ShouldLog(severity) {
+func (n *Node) Log(level LogLevel, msg string) {
+	if !n.ShouldLog(level) {
 		return // Short circuit message formatting if we're not logging it
 	}
 
@@ -174,12 +179,12 @@ func (n *Node) Log(severity LogSeverity, msg string) {
 	if len(msg) == 0 || msg[len(msg)-1] != '\n' {
 		msg += "\n" // Ensure trailing newline
 	}
-	n.pipeline.options.Log.Log(severity, msg)
+	n.pipeline.options.Log.Log(level, msg)
 
 	// If logger doesn't handle fatal/panic, we'll do it here.
-	if severity == LogFatal {
+	if level == LogFatal {
 		os.Exit(1)
-	} else if severity == LogPanic {
+	} else if level == LogPanic {
 		panic(msg)
 	}
 }
