@@ -18,12 +18,13 @@ type myPolicyFactory struct {
 }
 
 // New initializes a Xxx policy object.
-func (f *myPolicyFactory) New(node Node) Policy {
-	return &myPolicy{node: node /* Set desired fields */}
+func (f *myPolicyFactory) New(next Policy, config *Configuration) Policy {
+	return &myPolicy{next: next, config: config /* Set desired fields */}
 }
 
 type myPolicy struct {
-	node Node // Mandatory private field
+	next   Policy
+	config *Configuration // Mandatory private field
 	// Additional desired fields (mutable for use by this specific Policy object)
 }
 
@@ -34,7 +35,7 @@ func (p *myPolicy) Do(ctx context.Context, request Request) (response Response, 
 	// You can also pass a different Context on.
 
 	// Forward the request to the next node in the pipeline:
-	response, err = p.node.Do(ctx, request)
+	response, err = p.next.Do(ctx, request)
 
 	// Process the response here. You can deserialize the body into an object.
 	// If you do this, also define a struct that wraps an http.Response & your

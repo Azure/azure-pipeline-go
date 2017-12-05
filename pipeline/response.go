@@ -34,18 +34,21 @@ func (r httpResponse) Response() *http.Response {
 	return r.response
 }
 
-// WriteRequest appends a formatted HTTP request into a Buffer.
-func WriteRequest(b *bytes.Buffer, request *http.Request) {
+// WriteRequestWithResponse appends a formatted HTTP request into a Buffer. If request and/or err are
+// not nil, then these are also written into the Buffer.
+func WriteRequestWithResponse(b *bytes.Buffer, request *http.Request, response *http.Response, err error) {
+	// Write the request into the buffer.
 	fmt.Fprint(b, "   "+request.Method+" "+request.URL.String()+"\n")
 	writeHeader(b, request.Header)
-}
-
-// WriteRequestWithResponse appends a formatted HTTP response with its initiating request into a Buffer.
-func WriteRequestWithResponse(b *bytes.Buffer, request *http.Request, response *http.Response) {
-	WriteRequest(b, request) // Write the request first followed by the response.
-	fmt.Fprintln(b, "   --------------------------------------------------------------------------------")
-	fmt.Fprintf(b, "   RESPONSE Status: %s\n", response.Status)
-	writeHeader(b, response.Header)
+	if response != nil {
+		fmt.Fprintln(b, "   --------------------------------------------------------------------------------")
+		fmt.Fprintf(b, "   RESPONSE Status: %s\n", response.Status)
+		writeHeader(b, response.Header)
+	}
+	if err != nil {
+		fmt.Fprintln(b, "   --------------------------------------------------------------------------------")
+		fmt.Fprintf(b, "   ERROR:\n%v\n", err)
+	}
 }
 
 // formatHeaders appends an HTTP request's or response's header into a Buffer.
