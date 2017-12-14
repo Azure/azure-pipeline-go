@@ -11,7 +11,7 @@ import (
 // The Factory interface represents an object that can create its Policy object. Each HTTP request sent
 // requires that this Factory create a new instance of its Policy object.
 type Factory interface {
-	New(next Policy, config *Configuration) Policy
+	New(next Policy, po *PolicyOptions) Policy
 }
 
 // The Policy interface represents a mutable Policy object created by a Factory. The object can mutate/process
@@ -113,8 +113,8 @@ func (p *pipeline) Do(ctx context.Context, methodFactory Factory, request Reques
 func (p *pipeline) newPolicies(methodFactory Factory) Policy {
 	// The last Policy is the one that actually sends the request over the wire and gets the response.
 	// It is overridable via the Options' HTTPSender field.
-	config := &Configuration{pipeline: p} // One object shared by all policy objects
-	next := p.options.HTTPSender.New(nil, config)
+	po := &PolicyOptions{pipeline: p} // One object shared by all policy objects
+	next := p.options.HTTPSender.New(nil, po)
 
 	// Walk over the slice of Factory objects in reverse (from wire to API)
 	markers := 0
@@ -127,11 +127,11 @@ func (p *pipeline) newPolicies(methodFactory Factory) Policy {
 			}
 			if methodFactory != nil {
 				// Replace MethodFactoryMarker with passed-in methodFactory
-				next = methodFactory.New(next, config)
+				next = methodFactory.New(next, po)
 			}
 		} else {
 			// Use the slice's Factory to construct its Policy
-			next = factory.New(next, config)
+			next = factory.New(next, po)
 		}
 	}
 
@@ -142,29 +142,29 @@ func (p *pipeline) newPolicies(methodFactory Factory) Policy {
 	return next // Return head of the Policy object linked-list
 }
 
-// A Configuration represents additional configuration information that can optionally be used
-// by a node in the linked-list of Policy objects. A Configuration is passed to the Factory's
-// New method which passes it (if desired) to the Policy object it creates. Today, the Policy object
-// uses the Configuration to perform logging. But, in the future, this could be used for more.
-type Configuration struct {
+// A PolicyOptions represents optional information that can be used by a node in the
+// linked-list of Policy objects. A PolicyOptions is passed to the Factory's New method
+// which passes it (if desired) to the Policy object it creates. Today, the Policy object
+// uses the options to perform logging. But, in the future, this could be used for more.
+type PolicyOptions struct {
 	pipeline *pipeline
 }
 
 // ShouldLog returns true if the specified log level should be logged.
-func (c *Configuration) ShouldLog(level LogLevel) bool {
+func (po *PolicyOptions) ShouldLog(level LogLevel) bool {
 	if level == LogNone {
 		return false
 	}
 	minimumLevel := LogNone
-	if c.pipeline.options.Log.MinimumLevelToLog != nil {
-		minimumLevel = c.pipeline.options.Log.MinimumLevelToLog()
+	if po.pipeline.options.Log.MinimumLevelToLog != nil {
+		minimumLevel = po.pipeline.options.Log.MinimumLevelToLog()
 	}
 	return level <= minimumLevel
 }
 
 // Log logs a string to the Pipeline's Logger.
-func (c *Configuration) Log(level LogLevel, msg string) {
-	if !c.ShouldLog(level) {
+func (po *PolicyOptions) Log(level LogLevel, msg string) {
+	if !po.ShouldLog(level) {
 		return // Short circuit message formatting if we're not logging it
 	}
 
@@ -172,7 +172,7 @@ func (c *Configuration) Log(level LogLevel, msg string) {
 	if len(msg) == 0 || msg[len(msg)-1] != '\n' {
 		msg += "\n" // Ensure trailing newline
 	}
-	c.pipeline.options.Log.Log(level, msg)
+	po.pipeline.options.Log.Log(level, msg)
 
 	// If logger doesn't handle fatal/panic, we'll do it here.
 	if level == LogFatal {
@@ -217,12 +217,12 @@ type defaultHTTPClientPolicyFactory struct {
 }
 
 // Create initializes a logging policy object.
-func (f *defaultHTTPClientPolicyFactory) New(next Policy, config *Configuration) Policy {
-	return &defaultHTTPClientPolicy{config: config}
+func (f *defaultHTTPClientPolicyFactory) New(next Policy, po *PolicyOptions) Policy {
+	return &defaultHTTPClientPolicy{po: po}
 }
 
 type defaultHTTPClientPolicy struct {
-	config *Configuration
+	po *PolicyOptions
 }
 
 func (p *defaultHTTPClientPolicy) Do(ctx context.Context, request Request) (Response, error) {
@@ -245,6 +245,6 @@ func MethodFactoryMarker() Factory {
 type methodFactoryMarker struct {
 }
 
-func (mpmf methodFactoryMarker) New(next Policy, config *Configuration) Policy {
+func (mpmf methodFactoryMarker) New(next Policy, po *PolicyOptions) Policy {
 	panic("methodFactoryMarker policy should have been replaced with a method policy")
 }

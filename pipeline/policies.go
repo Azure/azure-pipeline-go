@@ -18,13 +18,13 @@ type myPolicyFactory struct {
 }
 
 // New initializes a Xxx policy object.
-func (f *myPolicyFactory) New(next Policy, config *Configuration) Policy {
-	return &myPolicy{next: next, config: config /* Set desired fields */}
+func (f *myPolicyFactory) New(next Policy, po *PolicyOptions) Policy {
+	return &myPolicy{next: next, po: po /* Set desired fields */}
 }
 
 type myPolicy struct {
-	next   Policy
-	config *Configuration // Mandatory private field
+	next Policy
+	po   *PolicyOptions // Optional private field
 	// Additional desired fields (mutable for use by this specific Policy object)
 }
 
