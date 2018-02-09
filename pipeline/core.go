@@ -205,11 +205,12 @@ func newDefaultHTTPClient() *http.Client {
 	return &http.Client{
 		Transport: &http.Transport{
 			Proxy: http.ProxyFromEnvironment,
-			DialContext: (&net.Dialer{
+			// We use Dial instead of DialContext as DialContext has been reported to cause slower performance.
+			Dial /*Context*/ : (&net.Dialer{
 				Timeout:   30 * time.Second,
 				KeepAlive: 30 * time.Second,
 				DualStack: true,
-			}).DialContext,
+			}).Dial, /*Context*/
 			MaxIdleConns:           0, // No limit
 			MaxIdleConnsPerHost:    100,
 			IdleConnTimeout:        90 * time.Second,
