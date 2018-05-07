@@ -73,17 +73,21 @@ const (
 
 	// LogInfo tells a logger to log all LogInfo, LogWarning, LogError, LogPanic and LogFatal entries passed to it.
 	LogInfo
+
+	// LogDebug tells a logger to log all LogDebug, LogInfo, LogWarning, LogError, LogPanic and LogFatal entries passed to it.
+	LogDebug
 )
 
 // LogOptions configures the pipeline's logging mechanism & level filtering.
 type LogOptions struct {
 	Log func(level LogLevel, message string)
 
-	// MinimumLevelToLog is called periodically allowing you to return the minimum level to log.
+	// ShouldLog is called periodically allowing you to return whether the specified LogLevel should be logged or not.
 	// An application can return different values over the its lifetime; this allows the application to dynamically
 	// alter what is logged. NOTE: This method can be called by multiple goroutines simultaneously so make sure
 	// you implement it in a goroutine-safe way. If nil, nothing is logged (the equivalent of returning LogNone).
-	MinimumLevelToLog func() LogLevel
+	// Usually, the function will be implemented simply like this: return level <= LogWarning
+	ShouldLog func(level LogLevel) bool
 }
 
 type pipeline struct {
@@ -168,14 +172,10 @@ type PolicyOptions struct {
 
 // ShouldLog returns true if the specified log level should be logged.
 func (po *PolicyOptions) ShouldLog(level LogLevel) bool {
-	if level == LogNone {
-		return false
+	if po.pipeline.options.Log.ShouldLog != nil {
+		return po.pipeline.options.Log.ShouldLog(level)
 	}
-	minimumLevel := LogNone
-	if po.pipeline.options.Log.MinimumLevelToLog != nil {
-		minimumLevel = po.pipeline.options.Log.MinimumLevelToLog()
-	}
-	return level <= minimumLevel
+	return false
 }
 
 // Log logs a string to the Pipeline's Logger.
