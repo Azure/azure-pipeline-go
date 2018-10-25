@@ -9,6 +9,23 @@ type causer interface {
 	Cause() error
 }
 
+func errorWithPC(msg string, pc uintptr) string {
+	s := ""
+	if fn := runtime.FuncForPC(pc); fn != nil {
+		file, line := fn.FileLine(pc)
+		s = fmt.Sprintf("-> %v, %v:%v\n", fn.Name(), file, line)
+	}
+	s += msg + "\n\n"
+	return s
+}
+
+func getPC(callersToSkip int) uintptr {
+	// Get the PC of Initialize method's caller.
+	pc := [1]uintptr{}
+	_ = runtime.Callers(callersToSkip, pc[:])
+	return pc[0]
+}
+
 // ErrorNode can be an embedded field in a private error object. This field
 // adds Program Counter support and a 'cause' (reference to a preceding error).
 // When initializing a error type with this embedded field, initialize the
@@ -22,12 +39,7 @@ type ErrorNode struct {
 // When defining a new error type, have its Error method call this one passing
 // it the string representation of the error.
 func (e *ErrorNode) Error(msg string) string {
-	s := ""
-	if fn := runtime.FuncForPC(e.pc); fn != nil {
-		file, line := fn.FileLine(e.pc)
-		s = fmt.Sprintf("-> %v, %v:%v\n", fn.Name(), file, line)
-	}
-	s += msg + "\n\n"
+	s := errorWithPC(msg, e.pc)
 	if e.cause != nil {
 		s += e.cause.Error() + "\n"
 	}
@@ -83,10 +95,8 @@ func (e ErrorNode) Timeout() bool {
 // value of 3 is very common; but, depending on your code nesting, you may need
 // a different value.
 func (ErrorNode) Initialize(cause error, callersToSkip int) ErrorNode {
-	// Get the PC of Initialize method's caller.
-	pc := [1]uintptr{}
-	_ = runtime.Callers(callersToSkip, pc[:])
-	return ErrorNode{pc: pc[0], cause: cause}
+	pc := getPC(callersToSkip)
+	return ErrorNode{pc: pc, cause: cause}
 }
 
 // Cause walks all the preceding errors and return the originating error.
@@ -113,13 +123,7 @@ type ErrorNodeNoCause struct {
 // When defining a new error type, have its Error method call this one passing
 // it the string representation of the error.
 func (e *ErrorNodeNoCause) Error(msg string) string {
-	s := ""
-	if fn := runtime.FuncForPC(e.pc); fn != nil {
-		file, line := fn.FileLine(e.pc)
-		s = fmt.Sprintf("-> %v, %v:%v\n", fn.Name(), file, line)
-	}
-	s += msg + "\n\n"
-	return s
+	return errorWithPC(msg, e.pc)
 }
 
 // Temporary returns true if the error occurred due to a temporary condition.
@@ -138,10 +142,8 @@ func (e ErrorNodeNoCause) Timeout() bool {
 // value of 3 is very common; but, depending on your code nesting, you may need
 // a different value.
 func (ErrorNodeNoCause) Initialize(callersToSkip int) ErrorNodeNoCause {
-	// Get the PC of Initialize method's caller.
-	pc := [1]uintptr{}
-	_ = runtime.Callers(callersToSkip, pc[:])
-	return ErrorNodeNoCause{pc: pc[0]}
+	pc := getPC(callersToSkip)
+	return ErrorNodeNoCause{pc: pc}
 }
 
 // NewError creates a simple string error (like Error.New). But, this
