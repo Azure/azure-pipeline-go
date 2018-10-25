@@ -101,12 +101,61 @@ func Cause(err error) error {
 	return err
 }
 
+// ErrorNodeNoCause can be an embedded field in a private error object. This field
+// adds Program Counter support.
+// When initializing a error type with this embedded field, initialize the
+// ErrorNodeNoCause field by calling ErrorNodeNoCause{}.Initialize().
+type ErrorNodeNoCause struct {
+	pc uintptr // Represents a Program Counter that you can get symbols for.
+}
+
+// Error returns a string with the PC's symbols or "" if the PC is invalid.
+// When defining a new error type, have its Error method call this one passing
+// it the string representation of the error.
+func (e *ErrorNodeNoCause) Error(msg string) string {
+	s := ""
+	if fn := runtime.FuncForPC(e.pc); fn != nil {
+		file, line := fn.FileLine(e.pc)
+		s = fmt.Sprintf("-> %v, %v:%v\n", fn.Name(), file, line)
+	}
+	s += msg + "\n\n"
+	return s
+}
+
+// Temporary returns true if the error occurred due to a temporary condition.
+func (e ErrorNodeNoCause) Temporary() bool {
+	return false
+}
+
+// Timeout returns true if the error occurred due to time expiring.
+func (e ErrorNodeNoCause) Timeout() bool {
+	return false
+}
+
+// Initialize is used to initialize an embedded ErrorNode field.
+// It captures the caller's program counter.
+// To initialize the field, use "ErrorNodeNoCause{}.Initialize(3)". A callersToSkip
+// value of 3 is very common; but, depending on your code nesting, you may need
+// a different value.
+func (ErrorNodeNoCause) Initialize(callersToSkip int) ErrorNodeNoCause {
+	// Get the PC of Initialize method's caller.
+	pc := [1]uintptr{}
+	_ = runtime.Callers(callersToSkip, pc[:])
+	return ErrorNodeNoCause{pc: pc[0]}
+}
+
 // NewError creates a simple string error (like Error.New). But, this
-// error also captures the caller's Program Counter and the preceding error.
+// error also captures the caller's Program Counter and the preceding error (if provided).
 func NewError(cause error, msg string) error {
-	return &pcError{
-		ErrorNode: ErrorNode{}.Initialize(cause, 3),
-		msg:       msg,
+	if cause != nil {
+		return &pcError{
+			ErrorNode: ErrorNode{}.Initialize(cause, 3),
+			msg:       msg,
+		}
+	}
+	return &pcErrorNoCause{
+		ErrorNodeNoCause: ErrorNodeNoCause{}.Initialize(3),
+		msg:              msg,
 	}
 }
 
@@ -119,3 +168,12 @@ type pcError struct {
 // Error satisfies the error interface. It shows the error with Program Counter
 // symbols and calls Error on the preceding error so you can see the full error chain.
 func (e *pcError) Error() string { return e.ErrorNode.Error(e.msg) }
+
+// pcErrorNoCause is a simple string error (like error.New) with an ErrorNode (PC).
+type pcErrorNoCause struct {
+	ErrorNodeNoCause
+	msg string
+}
+
+// Error satisfies the error interface. It shows the error with Program Counter symbols.
+func (e *pcErrorNoCause) Error() string { return e.ErrorNodeNoCause.Error(e.msg) }
