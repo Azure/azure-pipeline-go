@@ -12,7 +12,7 @@ func proxyMiddleman() func(req *http.Request) (i *url.URL, e error) {
 
 	if conf.Automatic.Active {
 		return func(req *http.Request) (i *url.URL, e error) {
-			return url.Parse(conf.Automatic.FindProxyForURL(req.URL.String()))
+			return &url.URL{Host: conf.Automatic.FindProxyForURL(req.URL.String())}, nil
 		}
 	} else if conf.Static.Active {
 		prox := httpproxy.Config{
