@@ -2,7 +2,7 @@ package pipeline
 
 import (
 	"context"
-	"github.com/adreed-msft/go-ieproxy"
+	"github.com/mattn/go-ieproxy"
 	"net"
 	"net/http"
 	"os"
