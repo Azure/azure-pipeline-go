@@ -8,7 +8,7 @@ func ForceLog(level LogLevel, msg string) {
 		return
 	}
 	if sanitizer != nil {
-		msg = sanitizer.SanitizeLogLine(msg)
+		msg = sanitizer.SanitizeLogMessage(msg)
 	}
 	forceLog(level, msg)
 }

@@ -258,7 +258,7 @@ func (methodFactoryMarker) New(next Policy, po *PolicyOptions) Policy {
 // By default no implemetation is provided here, because pipeline may be used in many different
 // contexts, so the correct implementation is context-dependent
 type LogSanitizer interface {
-	SanitizeLogLine(raw string) string
+	SanitizeLogMessage(raw string) string
 }
 
 var sanitizer LogSanitizer
