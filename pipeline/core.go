@@ -262,6 +262,7 @@ type LogSanitizer interface {
 }
 
 var sanitizer LogSanitizer
+var enableForceLog bool = true
 
 // SetLogSanitizer can be called to supply a custom LogSanitizer.
 // There is no threadsafety or locking on the underlying variable,
@@ -269,6 +270,14 @@ var sanitizer LogSanitizer
 // (Don't later try to change the sanitizer on the fly).
 func SetLogSanitizer(s LogSanitizer)(){
 	sanitizer = s
+}
+
+// SetForceLogEnabled can be used to disable ForceLog
+// There is no threadsafety or locking on the underlying variable,
+// so call this function just once at startup of your application
+// (Don't later try to change the setting on the fly).
+func SetForceLogEnabled(enable bool)() {
+	enableForceLog = enable
 }
 
 
