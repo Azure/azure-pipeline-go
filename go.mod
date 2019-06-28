@@ -1,5 +1,3 @@
 module github.com/Azure/azure-pipeline-go
 
-go 1.12
-
-require github.com/mattn/go-ieproxy v0.0.0-20190610004146-91bb50d98149 // indirect
+require github.com/mattn/go-ieproxy v0.0.0-20190610004146-91bb50d98149
