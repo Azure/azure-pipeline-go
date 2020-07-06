@@ -19,6 +19,14 @@ func TestErrorWithCause(t *testing.T) {
 	}
 }
 
+func TestErrorWithUnwrap(t *testing.T) {
+	rootErr := errors.New("root cause error")
+	pipeErr := NewError(rootErr, "pipeline wrapper error")
+	if !errors.Is(pipeErr, rootErr) {
+		t.Error("should be able to unrap rootErr")
+	}
+}
+
 func TestErrorWithoutCause(t *testing.T) {
 	pipeErr := NewError(nil, "pipeline error without cause")
 	wrapErr := errors.Wrap(pipeErr, "wrap with stack trace")
