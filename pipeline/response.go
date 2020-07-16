@@ -34,6 +34,12 @@ func (r httpResponse) Response() *http.Response {
 	return r.response
 }
 
+var HeadersToRemove = map[string]bool { //This is O(1) to check if it exists. Now if only Go had HashSets, this would be nicer.
+	"authorization":true,
+	"user-agent":true,
+	"server":true,
+}
+
 // WriteRequestWithResponse appends a formatted HTTP request into a Buffer. If request and/or err are
 // not nil, then these are also written into the Buffer.
 func WriteRequestWithResponse(b *bytes.Buffer, request *http.Request, response *http.Response, err error) {
@@ -64,11 +70,9 @@ func writeHeader(b *bytes.Buffer, header map[string][]string) {
 	}
 	sort.Strings(keys)
 	for _, k := range keys {
-		// Redact the value of any Authorization header to prevent security information from persisting in logs
-		value := interface{}("REDACTED")
-		if !strings.EqualFold(k, "Authorization") {
-			value = header[k]
+		//Hashmaps in go return two values: The value, and if the key was present.
+		if _, remove := HeadersToRemove[strings.ToLower(k)]; !remove {
+			fmt.Fprintf(b, "   %s: %+v\n", k, header[k])
 		}
-		fmt.Fprintf(b, "   %s: %+v\n", k, value)
 	}
 }
