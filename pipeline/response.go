@@ -66,7 +66,7 @@ func writeHeader(b *bytes.Buffer, header map[string][]string) {
 	for _, k := range keys {
 		// Redact the value of any Authorization header to prevent security information from persisting in logs
 		value := interface{}("REDACTED")
-		if !strings.EqualFold(k, "Authorization") {
+		if !strings.EqualFold(k, "Authorization") && !strings.EqualFold(k, "X-Ms-Copy-Source-Authorization") {
 			value = header[k]
 		}
 		fmt.Fprintf(b, "   %s: %+v\n", k, value)
