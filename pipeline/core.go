@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"sync"
 	"time"
 )
 
@@ -199,7 +200,8 @@ func (po *PolicyOptions) Log(level LogLevel, msg string) {
 	}
 }
 
-var pipelineHTTPClient = newDefaultHTTPClient()
+var onceHTTPInit sync.Once
+var pipelineHTTPClient *http.Client
 
 func newDefaultHTTPClient() *http.Client {
 	// We want the Transport to have a large connection pool
@@ -228,6 +230,12 @@ func newDefaultHTTPClient() *http.Client {
 
 // newDefaultHTTPClientFactory creates a DefaultHTTPClientPolicyFactory object that sends HTTP requests to a Go's default http.Client.
 func newDefaultHTTPClientFactory() Factory {
+	onceHTTPInit.Do(func () {
+		if pipelineHTTPClient == nil {
+			pipelineHTTPClient = newDefaultHTTPClient()
+		}
+	})
+
 	return FactoryFunc(func(next Policy, po *PolicyOptions) PolicyFunc {
 		return func(ctx context.Context, request Request) (Response, error) {
 			r, err := pipelineHTTPClient.Do(request.WithContext(ctx))
