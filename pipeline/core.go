@@ -2,7 +2,6 @@ package pipeline
 
 import (
 	"context"
-	"github.com/mattn/go-ieproxy"
 	"net"
 	"net/http"
 	"os"
@@ -205,7 +204,7 @@ func newDefaultHTTPClient() *http.Client {
 	// We want the Transport to have a large connection pool
 	return &http.Client{
 		Transport: &http.Transport{
-			Proxy: ieproxy.GetProxyFunc(),
+			Proxy: http.ProxyFromEnvironment,
 			// We use Dial instead of DialContext as DialContext has been reported to cause slower performance.
 			Dial /*Context*/ : (&net.Dialer{
 				Timeout:   30 * time.Second,
